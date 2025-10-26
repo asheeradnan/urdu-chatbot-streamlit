@@ -8,6 +8,7 @@ import torch
 import pickle
 import json
 from pathlib import Path
+from preprocessor import UrduPreprocessor
 import sys
 
 # Add current directory to path
