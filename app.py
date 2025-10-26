@@ -1,5 +1,5 @@
 """
-Streamlit Web App for Urdu Conversational Chatbot
+ChatGPT-Style Urdu Conversational Chatbot
 Author: Asheer Adnan (@asheeradnan)
 Date: October 26, 2025
 """
@@ -8,6 +8,7 @@ import streamlit as st
 import torch
 import pickle
 import json
+import random
 from pathlib import Path
 import sys
 
@@ -25,12 +26,12 @@ from preprocessor import UrduPreprocessor
 st.set_page_config(
     page_title="اردو چیٹ بوٹ | Urdu Chatbot",
     page_icon="🤖",
-    layout="wide",
-    initial_sidebar_state="expanded"
+    layout="centered",
+    initial_sidebar_state="collapsed"
 )
 
 # ============================================
-# CUSTOM CSS - BEAUTIFUL UI WITH PROPER CONTRAST
+# CUSTOM CSS - ChatGPT Style
 # ============================================
 
 st.markdown("""
@@ -38,303 +39,312 @@ st.markdown("""
     /* Import Urdu font */
     @import url('https://fonts.googleapis.com/css2?family=Noto+Nastaliq+Urdu:wght@400;700&display=swap');
     
-    /* Main app background - Purple gradient */
+    /* Main app background */
     .stApp {
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        background-color: #343541;
     }
     
-    /* Urdu text styling */
-    .urdu-text {
-        direction: rtl;
-        text-align: right;
-        font-size: 22px;
-        font-family: 'Noto Nastaliq Urdu', 'Jameel Noori Nastaleeq', Arial, sans-serif;
-        line-height: 1.8;
-        font-weight: 500;
+    /* Hide Streamlit branding */
+    #MainMenu {visibility: hidden;}
+    footer {visibility: hidden;}
+    header {visibility: hidden;}
+    
+    /* Main container */
+    .main .block-container {
+        padding-top: 2rem;
+        padding-bottom: 2rem;
+        max-width: 900px;
     }
     
-    /* User message bubble - Blue gradient with WHITE text */
+    /* Title area */
+    .title-container {
+        text-align: center;
+        padding: 20px;
+        margin-bottom: 20px;
+    }
+    
+    .title-container h1 {
+        color: #ECECF1;
+        font-size: 32px;
+        font-weight: 600;
+        margin-bottom: 8px;
+    }
+    
+    .title-container p {
+        color: #9B9BA5;
+        font-size: 14px;
+    }
+    
+    /* Chat container */
+    .chat-container {
+        background-color: #343541;
+        border-radius: 8px;
+        padding: 20px;
+        margin-bottom: 20px;
+        max-height: 600px;
+        overflow-y: auto;
+    }
+    
+    /* User message */
     .user-message {
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-        color: white !important;
-        padding: 18px 24px;
-        border-radius: 20px 20px 5px 20px;
-        margin: 15px 0;
+        background-color: #40414F;
+        color: #ECECF1;
+        padding: 20px;
+        border-radius: 8px;
+        margin-bottom: 16px;
         direction: rtl;
         text-align: right;
-        box-shadow: 0 4px 6px rgba(0,0,0,0.2);
-        border: 2px solid rgba(255,255,255,0.3);
+        font-family: 'Noto Nastaliq Urdu', Arial, sans-serif;
+        font-size: 18px;
+        line-height: 1.7;
+        border-left: 3px solid #10A37F;
     }
     
-    .user-message b {
-        color: #ffd700 !important;
-        font-size: 16px;
-        font-weight: 700;
+    .user-message .label {
+        color: #10A37F;
+        font-size: 14px;
+        font-weight: 600;
+        margin-bottom: 8px;
+        display: block;
+        text-align: left;
+        direction: ltr;
     }
     
-    .user-message .urdu-text {
-        color: white !important;
-    }
-    
-    /* Bot message bubble - Pink gradient with WHITE text */
+    /* Bot message */
     .bot-message {
-        background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
-        color: white !important;
-        padding: 18px 24px;
-        border-radius: 20px 20px 20px 5px;
-        margin: 15px 0;
+        background-color: #444654;
+        color: #ECECF1;
+        padding: 20px;
+        border-radius: 8px;
+        margin-bottom: 16px;
         direction: rtl;
         text-align: right;
-        box-shadow: 0 4px 6px rgba(0,0,0,0.2);
-        border: 2px solid rgba(255,255,255,0.3);
+        font-family: 'Noto Nastaliq Urdu', Arial, sans-serif;
+        font-size: 18px;
+        line-height: 1.7;
+        border-left: 3px solid #8B5CF6;
     }
     
-    .bot-message b {
-        color: #fff59d !important;
-        font-size: 16px;
-        font-weight: 700;
+    .bot-message .label {
+        color: #8B5CF6;
+        font-size: 14px;
+        font-weight: 600;
+        margin-bottom: 8px;
+        display: block;
+        text-align: left;
+        direction: ltr;
     }
     
-    .bot-message .urdu-text {
-        color: white !important;
+    /* Input container */
+    .input-container {
+        background-color: #40414F;
+        border-radius: 12px;
+        padding: 16px;
+        margin-bottom: 20px;
     }
     
-    /* Input box - White background with DARK text */
+    /* Text input */
     .stTextInput > div > div > input {
-        background-color: white !important;
-        color: #2c3e50 !important;
-        border: 3px solid #667eea !important;
-        border-radius: 12px !important;
-        padding: 14px 18px !important;
-        font-size: 20px !important;
+        background-color: #40414F !important;
+        color: #ECECF1 !important;
+        border: 1px solid #565869 !important;
+        border-radius: 8px !important;
+        padding: 16px !important;
+        font-size: 16px !important;
         direction: rtl !important;
         text-align: right !important;
         font-family: 'Noto Nastaliq Urdu', Arial, sans-serif !important;
-        font-weight: 500 !important;
     }
     
     .stTextInput > div > div > input::placeholder {
-        color: #7f8c8d !important;
+        color: #8E8EA0 !important;
         direction: rtl !important;
-        text-align: right !important;
-        font-family: 'Noto Nastaliq Urdu', Arial, sans-serif !important;
     }
     
     .stTextInput > div > div > input:focus {
-        border-color: #f5576c !important;
-        box-shadow: 0 0 0 3px rgba(245, 87, 108, 0.2) !important;
-        outline: none !important;
+        border-color: #10A37F !important;
+        box-shadow: 0 0 0 1px #10A37F !important;
     }
     
-    /* Label for input */
+    /* Hide input label */
     .stTextInput > label {
-        color: white !important;
-        font-size: 18px !important;
-        font-weight: 600 !important;
-        text-shadow: 1px 1px 2px rgba(0,0,0,0.3);
+        display: none;
     }
     
-    /* Button styling */
+    /* Buttons */
     .stButton > button {
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%) !important;
+        background-color: #10A37F !important;
         color: white !important;
         border: none !important;
-        border-radius: 12px !important;
-        padding: 14px 28px !important;
-        font-size: 16px !important;
-        font-weight: 700 !important;
-        box-shadow: 0 4px 6px rgba(0,0,0,0.2) !important;
-        transition: all 0.3s ease !important;
-        cursor: pointer !important;
+        border-radius: 8px !important;
+        padding: 12px 24px !important;
+        font-size: 14px !important;
+        font-weight: 600 !important;
+        width: 100% !important;
+        transition: all 0.2s !important;
     }
     
     .stButton > button:hover {
-        transform: translateY(-2px) !important;
-        box-shadow: 0 6px 12px rgba(0,0,0,0.3) !important;
-        background: linear-gradient(135deg, #764ba2 0%, #667eea 100%) !important;
+        background-color: #0E8C6F !important;
+        box-shadow: 0 2px 8px rgba(16, 163, 127, 0.3) !important;
     }
     
-    .stButton > button:active {
-        transform: translateY(0px) !important;
+    /* Suggestion chips container */
+    .suggestions-container {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px;
+        margin-bottom: 20px;
+        justify-content: center;
     }
     
-    /* Primary button (Send) */
-    .stButton > button[kind="primary"] {
-        background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%) !important;
+    /* Suggestion chip */
+    .suggestion-chip {
+        background-color: #40414F;
+        color: #ECECF1;
+        padding: 10px 20px;
+        border-radius: 20px;
+        border: 1px solid #565869;
+        cursor: pointer;
+        font-size: 14px;
+        transition: all 0.2s;
+        font-family: 'Noto Nastaliq Urdu', Arial, sans-serif;
+        direction: rtl;
+        display: inline-block;
     }
     
-    .stButton > button[kind="primary"]:hover {
-        background: linear-gradient(135deg, #f5576c 0%, #f093fb 100%) !important;
+    .suggestion-chip:hover {
+        background-color: #565869;
+        border-color: #10A37F;
+        transform: translateY(-2px);
     }
     
-    /* Sidebar styling */
-    section[data-testid="stSidebar"] {
-        background: linear-gradient(180deg, #2c3e50 0%, #34495e 100%) !important;
+    /* Empty state */
+    .empty-state {
+        text-align: center;
+        padding: 60px 20px;
     }
     
-    section[data-testid="stSidebar"] .stButton > button {
-        background: linear-gradient(135deg, #1abc9c 0%, #16a085 100%) !important;
-        color: white !important;
-        width: 100% !important;
-        margin: 6px 0 !important;
-        text-align: right !important;
-        direction: rtl !important;
-        font-family: 'Noto Nastaliq Urdu', Arial, sans-serif !important;
-        font-size: 17px !important;
-        padding: 12px 16px !important;
-        border-radius: 10px !important;
-        font-weight: 600 !important;
+    .empty-state h2 {
+        color: #ECECF1;
+        font-size: 28px;
+        margin-bottom: 12px;
     }
     
-    section[data-testid="stSidebar"] .stButton > button:hover {
-        background: linear-gradient(135deg, #16a085 0%, #1abc9c 100%) !important;
-        transform: translateX(-3px) !important;
+    .empty-state p {
+        color: #9B9BA5;
+        font-size: 16px;
+        margin-bottom: 30px;
     }
     
-    /* Sidebar text */
-    section[data-testid="stSidebar"] h1,
-    section[data-testid="stSidebar"] h2,
-    section[data-testid="stSidebar"] h3,
-    section[data-testid="stSidebar"] p,
-    section[data-testid="stSidebar"] label {
-        color: white !important;
-        text-shadow: 1px 1px 2px rgba(0,0,0,0.3);
+    /* Settings panel */
+    .settings-panel {
+        background-color: #40414F;
+        border-radius: 8px;
+        padding: 16px;
+        margin-bottom: 20px;
     }
     
-    section[data-testid="stSidebar"] strong {
-        color: #ffd700 !important;
-    }
-    
-    /* Main title styling */
-    h1 {
-        color: white !important;
-        text-shadow: 2px 2px 4px rgba(0,0,0,0.4) !important;
-        font-weight: 700 !important;
-        padding: 10px 0 !important;
-    }
-    
-    /* Section headers */
-    h2, h3 {
-        color: white !important;
-        font-weight: 600 !important;
-        text-shadow: 1px 1px 2px rgba(0,0,0,0.3) !important;
-    }
-    
-    /* Info boxes */
-    .stAlert {
-        background-color: rgba(255, 255, 255, 0.95) !important;
-        color: #2c3e50 !important;
-        border-radius: 12px !important;
-        border-left: 5px solid #667eea !important;
-        padding: 16px !important;
+    .settings-panel label {
+        color: #ECECF1 !important;
+        font-size: 14px !important;
         font-weight: 500 !important;
-    }
-    
-    /* Success box */
-    .stSuccess {
-        background-color: rgba(26, 188, 156, 0.9) !important;
-        color: white !important;
-        border-left: 5px solid #16a085 !important;
-    }
-    
-    /* Metrics */
-    [data-testid="stMetricValue"] {
-        color: white !important;
-        font-size: 36px !important;
-        font-weight: 700 !important;
-        text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
-    }
-    
-    [data-testid="stMetricLabel"] {
-        color: rgba(255,255,255,0.95) !important;
-        font-size: 16px !important;
-        font-weight: 600 !important;
     }
     
     /* Checkbox */
     .stCheckbox {
-        color: white !important;
+        color: #ECECF1 !important;
     }
     
     .stCheckbox > label {
-        color: white !important;
-        font-weight: 600 !important;
+        color: #ECECF1 !important;
     }
     
     /* Slider */
     .stSlider > label {
-        color: white !important;
-        font-weight: 600 !important;
+        color: #ECECF1 !important;
+        font-size: 14px !important;
     }
     
-    .stSlider > div > div > div {
-        background: linear-gradient(90deg, #667eea 0%, #764ba2 100%) !important;
+    /* Stats */
+    .stats-container {
+        background-color: #40414F;
+        border-radius: 8px;
+        padding: 20px;
+        text-align: center;
     }
     
-    /* Links */
-    a {
-        color: #ffd700 !important;
-        text-decoration: none !important;
-        font-weight: 600 !important;
+    .stat-item {
+        display: inline-block;
+        margin: 0 20px;
     }
     
-    a:hover {
-        color: #ffed4e !important;
-        text-decoration: underline !important;
+    .stat-value {
+        color: #10A37F;
+        font-size: 32px;
+        font-weight: 700;
     }
     
-    /* Markdown in sidebar */
-    section[data-testid="stSidebar"] .stMarkdown {
-        color: white !important;
-    }
-    
-    /* Divider */
-    hr {
-        border-color: rgba(255,255,255,0.3) !important;
+    .stat-label {
+        color: #9B9BA5;
+        font-size: 14px;
+        margin-top: 4px;
     }
     
     /* Scrollbar */
     ::-webkit-scrollbar {
-        width: 12px;
+        width: 8px;
     }
     
     ::-webkit-scrollbar-track {
-        background: rgba(255,255,255,0.1);
-        border-radius: 6px;
+        background: #2A2B32;
     }
     
     ::-webkit-scrollbar-thumb {
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-        border-radius: 6px;
+        background: #565869;
+        border-radius: 4px;
     }
     
     ::-webkit-scrollbar-thumb:hover {
-        background: linear-gradient(135deg, #764ba2 0%, #667eea 100%);
+        background: #6E6E80;
     }
     
     /* Loading spinner */
     .stSpinner > div {
-        border-top-color: #f5576c !important;
+        border-top-color: #10A37F !important;
     }
     
-    /* Center content box */
-    .center-box {
-        background: rgba(255, 255, 255, 0.95);
-        padding: 30px;
-        border-radius: 15px;
-        box-shadow: 0 8px 16px rgba(0,0,0,0.2);
-        margin: 20px 0;
+    /* Info message */
+    .stAlert {
+        background-color: #40414F !important;
+        color: #ECECF1 !important;
+        border: 1px solid #565869 !important;
+        border-radius: 8px !important;
     }
     
-    .center-box h3 {
-        color: #2c3e50 !important;
-        text-shadow: none !important;
+    /* Expandable section */
+    .streamlit-expanderHeader {
+        background-color: #40414F !important;
+        color: #ECECF1 !important;
+        border-radius: 8px !important;
     }
     
-    .center-box p {
-        color: #34495e !important;
-        font-size: 16px;
-        line-height: 1.6;
+    /* Footer */
+    .footer {
+        text-align: center;
+        padding: 20px;
+        color: #9B9BA5;
+        font-size: 12px;
+        margin-top: 40px;
+    }
+    
+    .footer a {
+        color: #10A37F;
+        text-decoration: none;
+    }
+    
+    .footer a:hover {
+        text-decoration: underline;
     }
 </style>
 """, unsafe_allow_html=True)
@@ -345,20 +355,16 @@ st.markdown("""
 
 @st.cache_resource
 def load_model():
-    """Load model, preprocessor, and config (cached for performance)"""
-    
+    """Load model, preprocessor, and config"""
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     
     try:
-        # Load preprocessor
         with open('models/preprocessor.pkl', 'rb') as f:
             preprocessor = pickle.load(f)
         
-        # Load config
         with open('models/model_config.json', 'r') as f:
             config = json.load(f)
         
-        # Initialize model
         model = Transformer(
             src_vocab_size=config['src_vocab_size'],
             tgt_vocab_size=config['tgt_vocab_size'],
@@ -371,249 +377,277 @@ def load_model():
             dropout=config['dropout']
         ).to(device)
         
-        # Load weights
         checkpoint = torch.load('models/best_model.pth', map_location=device)
         model.load_state_dict(checkpoint['model_state_dict'])
         model.eval()
         
         return model, preprocessor, device
-    
     except Exception as e:
         st.error(f"❌ Error loading model: {e}")
         st.stop()
 
 # Load model
-with st.spinner('🔄 Loading model... (first time takes ~30 seconds)'):
+with st.spinner('🔄 Loading Urdu Chatbot...'):
     model, preprocessor, device = load_model()
 
 # ============================================
-# SIDEBAR - RECOMMENDED INPUTS
+# SUGGESTION PROMPTS
 # ============================================
 
-st.sidebar.title("🎯 Quick Start")
-st.sidebar.markdown("### 💬 Try These Examples:")
+ALL_SUGGESTIONS = [
+    # Greetings
+    "السلام علیکم",
+    "صبح بخیر",
+    "شام بخیر",
+    "ہیلو",
+    "آداب",
+    
+    # Questions
+    "آپ کیسے ہیں؟",
+    "آپ کا نام کیا ہے؟",
+    "آپ کون ہیں؟",
+    "کیا حال ہے؟",
+    "آپ کہاں رہتے ہیں؟",
+    "آپ کیا کرتے ہیں؟",
+    
+    # Thanks
+    "شکریہ",
+    "بہت شکریہ",
+    "آپ کا شکریہ",
+    "ممنون ہوں",
+    
+    # Goodbye
+    "خدا حافظ",
+    "الوداع",
+    "پھر ملیں گے",
+    "اللہ حافظ",
+    
+    # Help
+    "مجھے مدد چاہیے",
+    "مدد کریں",
+    "رہنمائی چاہیے",
+    
+    # Feelings
+    "میں خوش ہوں",
+    "میں ٹھیک ہوں",
+    "میں پریشان ہوں",
+]
 
-# Recommended inputs organized by category
-recommended_inputs = {
-    "👋 Greetings": [
-        "السلام علیکم",
-        "صبح بخیر",
-        "شام بخیر",
-        "ہیلو"
-    ],
-    "🤔 Questions": [
-        "آپ کیسے ہیں؟",
-        "آپ کا نام کیا ہے؟",
-        "آپ کون ہیں؟",
-        "کیا حال ہے؟",
-        "آپ کہاں رہتے ہیں؟"
-    ],
-    "🙏 Thanks": [
-        "شکریہ",
-        "بہت شکریہ",
-        "آپ کا شکریہ",
-        "ممنون ہوں"
-    ],
-    "👋 Goodbye": [
-        "خدا حافظ",
-        "الوداع",
-        "پھر ملیں گے",
-        "اللہ حافظ"
-    ],
-    "😊 Feelings": [
-        "میں خوش ہوں",
-        "میں ٹھیک ہوں",
-        "میں پریشان ہوں",
-        "مجھے مدد چاہیے"
-    ]
-}
-
-# Display recommended inputs with click-to-use
-for category, inputs in recommended_inputs.items():
-    st.sidebar.markdown(f"**{category}**")
-    for input_text in inputs:
-        if st.sidebar.button(input_text, key=f"btn_{input_text}"):
-            st.session_state['user_input'] = input_text
-            st.session_state['should_generate'] = True
-
-st.sidebar.markdown("---")
-st.sidebar.markdown("### ⚙️ Settings")
-
-use_beam_search = st.sidebar.checkbox("Use Beam Search", value=True, 
-                                       help="Better quality, slightly slower")
-max_length = st.sidebar.slider("Max Response Length", 10, 100, 50)
-
-st.sidebar.markdown("---")
-st.sidebar.markdown("""
-### 📊 Model Info
-- **Architecture:** Transformer
-- **Layers:** 2 Encoder + 2 Decoder
-- **Attention Heads:** 2
-- **Parameters:** ~12M
-- **BLEU Score:** 11.63
-- **chrF Score:** 19.83
-- **Perplexity:** 13.28
-""")
-
-st.sidebar.markdown("---")
-st.sidebar.markdown("### 🔗 Links")
-st.sidebar.markdown("""
-- 📂 [GitHub Repository](https://github.com/asheeradnan/urdu-chatbot-streamlit)
-- 📓 [Kaggle Notebook](https://kaggle.com)
-- 📝 [Medium Blog](https://medium.com)
-""")
+def get_random_suggestions(n=4):
+    """Get n random suggestion prompts"""
+    return random.sample(ALL_SUGGESTIONS, min(n, len(ALL_SUGGESTIONS)))
 
 # ============================================
-# MAIN APP
+# SESSION STATE
 # ============================================
 
-# Title with Urdu and English
-st.title("🤖 اردو مکالماتی چیٹ بوٹ")
-st.title("Urdu Conversational Chatbot")
-
-st.markdown("""
-<div class='center-box'>
-    <h3 style='text-align: center;'>✨ Built from Scratch using PyTorch & Transformer Architecture ✨</h3>
-    <p style='text-align: center;'>
-        A sequence-to-sequence chatbot trained on 15,000+ Urdu conversation pairs<br>
-        👨‍💻 Developer: <b>Asheer Adnan</b> (@asheeradnan) | 📅 October 2025
-    </p>
-</div>
-""", unsafe_allow_html=True)
-
-st.markdown("---")
-
-# ============================================
-# CHAT INTERFACE
-# ============================================
-
-# Initialize session state
 if 'chat_history' not in st.session_state:
     st.session_state['chat_history'] = []
 
-if 'user_input' not in st.session_state:
-    st.session_state['user_input'] = ""
+if 'suggestions' not in st.session_state:
+    st.session_state['suggestions'] = get_random_suggestions(4)
 
-if 'should_generate' not in st.session_state:
-    st.session_state['should_generate'] = False
+if 'use_beam_search' not in st.session_state:
+    st.session_state['use_beam_search'] = True
 
-# Two-column layout
-col1, col2 = st.columns([2, 1])
+if 'max_length' not in st.session_state:
+    st.session_state['max_length'] = 50
 
-with col1:
-    st.markdown("### 💬 Chat Window")
+# ============================================
+# HEADER
+# ============================================
+
+st.markdown("""
+<div class='title-container'>
+    <h1>🤖 اردو چیٹ بوٹ</h1>
+    <p>Urdu Conversational AI | Built with Transformer Architecture</p>
+</div>
+""", unsafe_allow_html=True)
+
+# ============================================
+# SETTINGS (Collapsible)
+# ============================================
+
+with st.expander("⚙️ Settings", expanded=False):
+    col1, col2 = st.columns(2)
     
-    # Input area
+    with col1:
+        st.session_state['use_beam_search'] = st.checkbox(
+            "Use Beam Search (Better Quality)",
+            value=st.session_state['use_beam_search']
+        )
+    
+    with col2:
+        st.session_state['max_length'] = st.slider(
+            "Max Response Length",
+            min_value=10,
+            max_value=100,
+            value=st.session_state['max_length']
+        )
+    
+    if st.button("🔄 Refresh Suggestions"):
+        st.session_state['suggestions'] = get_random_suggestions(4)
+        st.rerun()
+
+# ============================================
+# CHAT DISPLAY
+# ============================================
+
+# Show chat history or empty state
+if len(st.session_state['chat_history']) == 0:
+    st.markdown("""
+    <div class='empty-state'>
+        <h2>👋 خوش آمدید</h2>
+        <p>Start a conversation in Urdu by typing below or clicking a suggestion</p>
+    </div>
+    """, unsafe_allow_html=True)
+else:
+    # Display messages
+    for message in st.session_state['chat_history']:
+        if message['role'] == 'user':
+            st.markdown(f"""
+            <div class='user-message'>
+                <span class='label'>👤 You</span>
+                {message['content']}
+            </div>
+            """, unsafe_allow_html=True)
+        else:
+            st.markdown(f"""
+            <div class='bot-message'>
+                <span class='label'>🤖 Urdu Bot</span>
+                {message['content']}
+            </div>
+            """, unsafe_allow_html=True)
+
+# ============================================
+# SUGGESTION CHIPS
+# ============================================
+
+if len(st.session_state['chat_history']) == 0:
+    st.markdown("<div class='suggestions-container'>", unsafe_allow_html=True)
+    
+    cols = st.columns(4)
+    for idx, suggestion in enumerate(st.session_state['suggestions']):
+        with cols[idx]:
+            if st.button(suggestion, key=f"suggest_{idx}", use_container_width=True):
+                # Add user message
+                st.session_state['chat_history'].append({
+                    'role': 'user',
+                    'content': suggestion
+                })
+                
+                # Generate response
+                with st.spinner('🤔 Thinking...'):
+                    response = generate_response(
+                        model,
+                        suggestion,
+                        preprocessor,
+                        device,
+                        max_len=st.session_state['max_length'],
+                        use_beam_search=st.session_state['use_beam_search']
+                    )
+                
+                # Add bot response
+                st.session_state['chat_history'].append({
+                    'role': 'bot',
+                    'content': response
+                })
+                
+                st.rerun()
+    
+    st.markdown("</div>", unsafe_allow_html=True)
+
+# ============================================
+# INPUT AREA
+# ============================================
+
+st.markdown("<br>", unsafe_allow_html=True)
+
+# Input form
+with st.form(key='chat_form', clear_on_submit=True):
     user_input = st.text_input(
-        "اپنا پیغام یہاں لکھیں | Type your message in Urdu:",
-        value=st.session_state['user_input'],
-        placeholder="مثال: السلام علیکم",
-        key="input_field"
+        "Message",
+        placeholder="اپنا پیغام یہاں لکھیں... (Type your message here in Urdu)",
+        key="user_input_field",
+        label_visibility="collapsed"
     )
     
-    col_btn1, col_btn2, col_btn3 = st.columns([1, 1, 3])
+    col1, col2, col3 = st.columns([3, 1, 1])
     
-    with col_btn1:
-        send_button = st.button("📤 Send", type="primary", use_container_width=True)
+    with col1:
+        submit_button = st.form_submit_button("📤 Send Message", use_container_width=True)
     
-    with col_btn2:
-        clear_button = st.button("🗑️ Clear Chat", use_container_width=True)
+    with col2:
+        pass  # Spacer
     
-    # Handle button clicks or session state trigger
-    if send_button or st.session_state['should_generate']:
-        if user_input.strip():
-            # Add user message
-            st.session_state['chat_history'].append({
-                'role': 'user',
-                'content': user_input
-            })
-            
-            # Generate response
-            with st.spinner('🤔 Generating response...'):
-                response = generate_response(
-                    model, 
-                    user_input, 
-                    preprocessor, 
-                    device,
-                    max_len=max_length,
-                    use_beam_search=use_beam_search
-                )
-            
-            # Add bot response
-            st.session_state['chat_history'].append({
-                'role': 'bot',
-                'content': response
-            })
-            
-            # Reset input
-            st.session_state['user_input'] = ""
-            st.session_state['should_generate'] = False
+    with col3:
+        if st.form_submit_button("🗑️ Clear", use_container_width=True):
+            st.session_state['chat_history'] = []
+            st.session_state['suggestions'] = get_random_suggestions(4)
             st.rerun()
-        else:
-            st.warning("⚠️ Please enter a message first!")
-    
-    if clear_button:
-        st.session_state['chat_history'] = []
-        st.session_state['user_input'] = ""
-        st.rerun()
-    
-    # Display chat history
-    st.markdown("### 📜 Conversation History")
-    
-    if st.session_state['chat_history']:
-        for i, message in enumerate(reversed(st.session_state['chat_history'])):
-            if message['role'] == 'user':
-                st.markdown(f"""
-                <div class='user-message'>
-                    <b>👤 You:</b><br>
-                    <span class='urdu-text'>{message['content']}</span>
-                </div>
-                """, unsafe_allow_html=True)
-            else:
-                st.markdown(f"""
-                <div class='bot-message'>
-                    <b>🤖 Bot:</b><br>
-                    <span class='urdu-text'>{message['content']}</span>
-                </div>
-                """, unsafe_allow_html=True)
-    else:
-        st.info("💡 Start a conversation by typing in Urdu or clicking an example from the sidebar!")
 
-with col2:
-    st.markdown("### 📊 Quick Stats")
+# Handle form submission
+if submit_button and user_input.strip():
+    # Add user message
+    st.session_state['chat_history'].append({
+        'role': 'user',
+        'content': user_input
+    })
     
-    st.metric("Total Messages", len(st.session_state['chat_history']))
-    st.metric("Your Messages", len([m for m in st.session_state['chat_history'] if m['role'] == 'user']))
-    st.metric("Bot Responses", len([m for m in st.session_state['chat_history'] if m['role'] == 'bot']))
+    # Generate response
+    with st.spinner('🤔 Generating response...'):
+        response = generate_response(
+            model,
+            user_input,
+            preprocessor,
+            device,
+            max_len=st.session_state['max_length'],
+            use_beam_search=st.session_state['use_beam_search']
+        )
     
-    st.markdown("---")
+    # Add bot response
+    st.session_state['chat_history'].append({
+        'role': 'bot',
+        'content': response
+    })
     
-    st.markdown("### 💡 Tips")
-    st.info("""
-    **For Best Results:**
-    - Use proper Urdu script
-    - Try common phrases first
-    - Greetings work best
-    - Questions get good responses
-    - Keep messages short
-    """)
+    st.rerun()
+
+# ============================================
+# STATS
+# ============================================
+
+if len(st.session_state['chat_history']) > 0:
+    st.markdown("<br><br>", unsafe_allow_html=True)
+    
+    user_msgs = len([m for m in st.session_state['chat_history'] if m['role'] == 'user'])
+    bot_msgs = len([m for m in st.session_state['chat_history'] if m['role'] == 'bot'])
+    
+    st.markdown(f"""
+    <div class='stats-container'>
+        <div class='stat-item'>
+            <div class='stat-value'>{len(st.session_state['chat_history'])}</div>
+            <div class='stat-label'>Total Messages</div>
+        </div>
+        <div class='stat-item'>
+            <div class='stat-value'>{user_msgs}</div>
+            <div class='stat-label'>Your Messages</div>
+        </div>
+        <div class='stat-item'>
+            <div class='stat-value'>{bot_msgs}</div>
+            <div class='stat-label'>Bot Responses</div>
+        </div>
+    </div>
+    """, unsafe_allow_html=True)
 
 # ============================================
 # FOOTER
 # ============================================
 
-st.markdown("---")
 st.markdown("""
-<div style='text-align: center; padding: 20px;'>
-    <p style='color: white; font-size: 16px; text-shadow: 1px 1px 2px rgba(0,0,0,0.3);'>
-        <b>Urdu Conversational Chatbot</b> | Built with ❤️ using PyTorch & Streamlit
-    </p>
-    <p style='color: rgba(255,255,255,0.9); font-size: 14px;'>
-        © 2025 Asheer Adnan (@asheeradnan) | All Rights Reserved
-    </p>
-    <p style='color: rgba(255,255,255,0.9); font-size: 14px;'>
-        ⭐ If you find this helpful, please star on 
-        <a href='https://github.com/asheeradnan/urdu-chatbot-streamlit' target='_blank'>GitHub</a>
-    </p>
+<div class='footer'>
+    Built with ❤️ by <a href='https://github.com/asheeradnan' target='_blank'>Asheer Adnan</a> | 
+    <a href='https://github.com/asheeradnan/urdu-chatbot-streamlit' target='_blank'>GitHub</a> | 
+    October 2025
 </div>
 """, unsafe_allow_html=True)
