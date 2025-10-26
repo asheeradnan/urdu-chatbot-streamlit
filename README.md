@@ -1,7 +1,7 @@
 # Urdu Conversational Chatbot - Streamlit Deployment
 
 ## 🚀 Live Demo
-[View Live App](https://urdu-chatbot-asheeradnan.streamlit.app)
+[View Live App][(https://urdu-chatbot-asheeradnan.streamlit.app)](https://urdu-chatbot-app-uywgfye3tz3x52e5j3pqzj.streamlit.app/)
 
 ## 📊 About
 Transformer-based chatbot for Urdu language built from scratch using PyTorch.
